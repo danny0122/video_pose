@@ -71,6 +71,9 @@ class H36MDataset(Dataset):
 
 
         img_idx=self.vid_indices[index]
+
+        frames=[]
+        bbox_list=[]
         
         for frame_idx in range(self.seqlen):
             vid_dir=self.db["vid_name"][img_idx+frame_idx]
@@ -79,6 +82,24 @@ class H36MDataset(Dataset):
             img_path = osp.join(vid_dir,img_name)
             print(img_path)
             img=load_img(img_path)
+
+            frames.append(img)
+            bbox_list.append(self.db["bbox"][img_idx+frame_idx])
+        
+        # debug gif image output
+        import imageio
+        with imageio.get_writer("debug.gif", mode="I") as writer:
+            for idx, frame in enumerate(frames):
+                bbox=bbox_list[idx]
+                rgb_frame=frame
+                #rgb_frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2RGB)
+                rgb_frame=cv2.rectangle(rgb_frame, (int(bbox[0]-bbox[2]/2),int(bbox[1]-bbox[3]/2)),
+                 (int(bbox[0]+bbox[2]/2),int(bbox[1]+bbox[3]/2)), (0,255,0), 3)
+                writer.append_data(rgb_frame)
+
+        import pdb;pdb.set_trace()
+        
+        #return 
 
 
 

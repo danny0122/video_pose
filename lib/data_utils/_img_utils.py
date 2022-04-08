@@ -335,13 +335,21 @@ def split_into_chunks(vid_names, seqlen, stride, is_train=True, match_vibe=True)
     video_names, group = np.unique(vid_names, return_index=True)
     perm = np.argsort(group)
     video_names, group = video_names[perm], group[perm]
+    # video_names : 각 비디오의 이름들(중복x), group : 그 이름에 해당하는 원래 데이터배열에서 index
+    # 순서는 그 index의 오름차순 
+
 
     indices = np.split(np.arange(0, vid_names.shape[0]), group[1:])
+    #[0....n-1]을 같은 비디오 끼리 쪼갬 ex) [0,1,..,5],[6,..,8],[9...,20]
+
     # import pdb; pdb.set_trace()
     for idx in range(len(video_names)):
         indexes = indices[idx]
+        #indexes : [6,.,,8]
+
         if indexes.shape[0] < seqlen:
             continue
+    
         chunks = view_as_windows(indexes, (seqlen,), step=stride)
         start_finish = chunks[:, (0, -1)].tolist()
         if stride != seqlen:
@@ -352,6 +360,8 @@ def split_into_chunks(vid_names, seqlen, stride, is_train=True, match_vibe=True)
                         if j != 1:
                             start_finish = start_finish[:-j+1]
                         break
+
+            #erase frames that vibe dont use 
 
             d = start_finish[0][0]
             for j in range(int(seqlen/2)):
@@ -370,3 +380,37 @@ def split_into_chunks(vid_names, seqlen, stride, is_train=True, match_vibe=True)
         video_start_end_indices += start_finish
 
     return video_start_end_indices
+
+
+
+def split_into_lucky_frame_chunks(vid_names, is_lucky_frame , seqlen, stride,is_train=True, match_vibe=True):
+    video_start_end_indices = []
+    video_names, group = np.unique(vid_names, return_index=True)
+    perm = np.argsort(group)
+    video_names, group = video_names[perm], group[perm]
+    # video_names : 각 비디오의 이름들(중복x), group : 그 이름에 해당하는 원래 데이터배열에서 index
+    # 순서는 그 index의 오름차순 
+
+    indices = np.split(np.arange(0, vid_names.shape[0]), group[1:])
+    #[0....n-1]을 같은 비디오 끼리 쪼갬 ex) [0,1,..,5],[6,..,8],[9...,20]
+
+    is_lucky_frame_in_video = np.split(is_lucky_frame, group[1:])
+    # 비디오 별로 lucky_frame인지 나타내는 bool값을 쪼갬
+
+    lucky_indexes_by_video = []
+
+    for idx in range(len(video_names)):
+        indexes = indices[idx]
+        # [5,6,7,8,9]
+        is_lucky = is_lucky_frame_in_video[idx]
+        # [0,1,1,0,1]
+
+        lucky_indexes = indexes[np.where(is_lucky!=0)]
+
+        if lucky_indexes.shape[0] < seqlen:
+            continue
+    
+        lucky_indexes_by_video.append(lucky_indexes)
+
+    return lucky_indexes_by_video
+        

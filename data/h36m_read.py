@@ -5,7 +5,12 @@ import glob
 import numpy as np
 from tqdm import tqdm
 import os.path as osp
+import joblib
+import argparse
 
+
+import sys
+sys.path.append('.')
 
 from lib.data_utils._kp_utils import convert_kps
 from lib.utils.smooth_bbox import get_smooth_bbox_params, get_all_bbox_params
@@ -55,8 +60,10 @@ def load_data(data_path,is_train=True):
 
     if is_train:
         subjects=[1,5,6,7,8]
+        print("reading train set")
     else:
         subjects=[9,11]
+        print("reading test set")
 
     annot_path = osp.join(data_path,"annotations")
     images_path = osp.join(data_path,"images")
@@ -81,12 +88,14 @@ def load_data(data_path,is_train=True):
         
         #s_01_act_02_subact_01_ca_01
         #s_01_act_02_subact_01_ca_01_000001.jpg
-        print(f" subject {subject} : reading image")
+        print(f" subject {subject} : reading data")
         video_path_list = sorted(glob.glob( osp.join( images_path, f"s_{subject:02d}*")))
+        #video_path_list : ['data/Human36M/images/s_09_act_02_subact_01_ca_01', ... 'data/Human36M/images/s_09_act_16_subact_02_ca_04']
 
-        
         for video_path in tqdm(video_path_list):
             
+            #video_path : 'data/Human36M/images/s_09_act_16_subact_02_ca_04'
+            #video_dir :  's_09_act_16_subact_02_ca_04'
             video_dir = video_path.split('/')[-1]
             act = str(int(video_dir.split('_act_')[-1][0:2]))
             subact = str(int(video_dir.split('_subact_')[-1][0:2]))
@@ -159,6 +168,7 @@ def load_data(data_path,is_train=True):
             bbox = bbox[::2]
             # subsample frame to 25 fps
 
+            #video_path : 'data/Human36M/images/s_09_act_16_subact_02_ca_04'
             #dataset['vid_name'].append(np.array([f'{video_path}_{subject}'] * num_frames)[time_pt1:time_pt2][::2])
             dataset['vid_name'].append(np.array([f'{video_path}'] * num_frames)[time_pt1:time_pt2][::2])
             dataset['frame_id'].append(np.arange(0, num_frames)[time_pt1:time_pt2][::2])
@@ -170,8 +180,8 @@ def load_data(data_path,is_train=True):
             dataset['img_name'].append(img_paths_array)
             dataset['bbox'].append(bbox)
 
+            #고정된 resnet을 통해 미리 얻어낸 feature도 같이 저장
             #features = extract_features(model, None, img_paths_array, bbox,kp_2d=j2ds[time_pt1:time_pt2][::2], debug=debug, dataset='h36m', scale=1.0)  # 1.2 for h36m_train_25fps_occ_db.pt
-
             #dataset['features'].append(features)
 
             #import pdb;pdb.set_trace()
@@ -191,3 +201,21 @@ def load_data(data_path,is_train=True):
     #import pdb;pdb.set_trace()
 
     return dataset
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='processed h36m dataset saving')
+    parser.add_argument('--dir', type=str, help='directory of dataset', default="data/Human36M")
+    parser.add_argument('--set', type=str, help='train or test', default="test")
+    #데이터전처리 버전 저장 설정
+
+    args = parser.parse_args()
+
+    print(" try to read and save h36m data")
+    db=load_data( args.dir, (args.set=="train") )
+    
+    db_name=osp.join( "data/", f"h36m_{args.set}_nofeature.pt" )
+    
+    joblib.dump(db , db_name )
+
+    print(f"h36m data dumped at {db_name}")
+    
